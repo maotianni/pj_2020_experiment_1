@@ -100,19 +100,43 @@ class EarlyStopMonitor(object):
         return self.num_round >= self.max_round
 
 
+class RandEdgeSampler(object):
+    def __init__(self, src_list, dst_list, seed=None):
+        self.seed = None
+        self.src_list = np.unique(src_list)
+        self.dst_list = np.unique(dst_list)
+
+        if seed is not None:
+            self.seed = seed
+            self.random_state = np.random.RandomState(self.seed)
+
+    def sample(self, size):
+        if self.seed is None:
+            src_index = np.random.randint(0, len(self.src_list), size)
+            dst_index = np.random.randint(0, len(self.dst_list), size)
+        else:
+
+            src_index = self.random_state.randint(0, len(self.src_list), size)
+            dst_index = self.random_state.randint(0, len(self.dst_list), size)
+        return self.src_list[src_index], self.dst_list[dst_index]
+
+    def reset_random_state(self):
+        self.random_state = np.random.RandomState(self.seed)
+
+
 #####################################################################################
 ### 更改 Neighbour Finder
-def get_neighbor_finder(data, uniform, max_node_idx=None, n_relations=5):
+def get_neighbor_finder(data, uniform, max_node_idx=None):
     max_node_idx = max(data.sources.max(), data.destinations.max()) if max_node_idx is None else max_node_idx
-    adj_list = [[[] for ii in range(n_relations+1)] for _ in range(max_node_idx + 1)]
+    adj_list = [[] for _ in range(max_node_idx + 1)]
     for source, destination, edge_idx, timestamp, label in zip(data.sources, data.destinations,
                                                                data.edge_idxs,
                                                                data.timestamps,
                                                                data.labels):
-        adj_list[source][label].append((destination, edge_idx, timestamp))
-        adj_list[destination][label].append((source, edge_idx, timestamp))
+        adj_list[source].append((destination, edge_idx, timestamp, label))
+        adj_list[destination].append((source, edge_idx, timestamp, label))
 
-    return NeighborFinder(adj_list, uniform=uniform)
+    return NeighborFinder(adj_list)
 
 
 class NeighborFinder:
@@ -141,15 +165,15 @@ class NeighborFinder:
         """
         Extracts all the interactions happening before cut_time for user src_idx in the overall interaction graph. The returned interactions are sorted by time.
 
-        Returns 4 lists: neighbors, edge_idxs, timestamps, labels
+        Returns 4 lists: neighbors, edge_idxs, timestamps
 
         """
         out_neighbours = []
         out_edge_idx = []
         out_timestamp = []
         for i in range(n_relations):
-            idx = np.where(self.node_to_edge_timestamps[src_idx] < cut_time and
-                           self.node_to_edge_labels[src_idx] == i+1)
+            idx = np.where((self.node_to_edge_timestamps[src_idx] < cut_time) &
+                           (self.node_to_edge_labels[src_idx] == i+1))
             out_neighbours.append(self.node_to_neighbors[src_idx][idx])
             out_edge_idx.append(self.node_to_edge_idxs[src_idx][idx])
             out_timestamp.append(self.node_to_edge_timestamps[src_idx][idx])
