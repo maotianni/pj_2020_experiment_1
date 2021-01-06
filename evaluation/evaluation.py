@@ -26,8 +26,8 @@ def eval_score_prediction_beta(model, data, edge_idxs, batch_size, possible_scor
                                     timestamps_batch, edge_idxs_batch, n_neighbors)
             pred_prob_batch = (torch.softmax(pred_prob_batch, dim=1) *
                                possible_score.view(1, -1)).sum(dim=1)
-            pred_expectation[s_idx: e_idx] = pred_prob_batch
-    rmse = ((pred_expectation - ground_truth) ** 2.).mean()
-    rmse = torch.sqrt(rmse).item()
+            pred_expectation[s_idx: e_idx] = pred_prob_batch.cpu().numpy()
+    rmse = ((pred_expectation - ground_truth) ** 2.).mean().item()
+    rmse = np.sqrt(rmse)
     return rmse
-###################################################################################################
+################################################################################################
