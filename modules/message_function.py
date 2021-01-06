@@ -14,7 +14,7 @@ class IdentityMessageFunction(MessageFunction):
         return raw_messages
 
 
-def get_message_function(module_type):
+def get_message_function(module_type, raw_message_dimension, message_dimension):
     if module_type == "identity":
         return IdentityMessageFunction()
     else:
